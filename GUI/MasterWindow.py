@@ -39,6 +39,7 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         self.canvas: BaseCanvas = None
         
         self.title("Packaged ReRAM Testing GUI")
+        self.geometry("450x700")
 
         #prevent changing the size of the GUI as well as closing protocols
         self.resizable(True, True)
@@ -76,6 +77,32 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
 
         self.createModeButtonFrame()
 
+        # === THE ULTIMATE TOUCHSCREEN SCROLLING FIX ===
+        # 1. Define a cross-platform scroll function that explicitly controls the canvas viewport
+        def directional_scroll(event):
+            if event.delta: # Windows / macOS tracking
+                self.modeCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            elif event.num == 4: # Linux scroll up (Raspberry Pi touchscreens)
+                self.modeCanvas.yview_scroll(-1, "units")
+            elif event.num == 5: # Linux scroll down (Raspberry Pi touchscreens)
+                self.modeCanvas.yview_scroll(1, "units")
+
+        # 2. Attach the helper function directly to the class structure using "self."
+        def apply_scroll_to_all_children(parent_widget):
+            parent_widget.bind("<MouseWheel>", directional_scroll)
+            parent_widget.bind("<Button-4>", directional_scroll)
+            parent_widget.bind("<Button-5>", directional_scroll)
+            for child in parent_widget.winfo_children():
+                apply_scroll_to_all_children(child)
+        
+        # Save it to the class instance so other methods can see it
+        self.apply_scroll_to_all_children = apply_scroll_to_all_children
+
+        # 3. Bind the main canvas wrapper area
+        self.modeCanvas.bind_all("<MouseWheel>", directional_scroll)
+        self.modeCanvas.bind_all("<Button-4>", directional_scroll)
+        self.modeCanvas.bind_all("<Button-5>", directional_scroll)
+
         self.initGridWindow()
         self.initMenuBar()
 
@@ -108,81 +135,34 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
 
     def createModeButtonFrame(self):
         """
-        Creates the frame to the left of the main window that contains all the different mode buttons.
-        This frame is created with a light blue background and is set to automatically resize with the window.
-        The buttons in this frame are labeled as follows (from top to bottom):
-            1. Pulse Testing
-            2. Potentiation Testing
-            3. Pulse Testing - SET/RESET Switch per Cycle
-            4. IV Testing
-        Each button calls its respective class function for deconstructing and reconstructing the canvas upon button presses.
+        Configures a completely fluid, responsive canvas area.
+        Elements scale up and down dynamically based on the current window size.
         """
+        # Create a completely fluid content canvas with no hardcoded pixel limits
+        self.modeCanvas = Canvas(self)
+        self.modeCanvas.grid(row=0, column=0, sticky='nsew')
         
-        # Frame for buttons with light blue background
-        self.ModeButtonFrame = Frame(self, bg='lightblue')
-        self.ModeButtonFrame.grid(row=0, column=0, sticky='nsew')
-
-        # Configure the grid to be resizable
-        self.grid_rowconfigure(0, weight=1)  # Let the ModeButtonFrame expand
-        self.grid_columnconfigure(0, weight=1)  # Let the ModeButtonFrame expand vertically
+        # Configure window weights so the panel expands and contracts responsively
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
         
-        # create the canvas to the right of the ModeButtonFrame
-        self.modeCanvas = Canvas(self, width=525, height=650)
-        self.modeCanvas.grid(row=0, column=1, sticky='nsew')
-        # create scrollbar for right side of canvas and configure it to the canvas
+        # Seamlessly link the scrollbar tracking
         modeScrollBarY = ttk.Scrollbar(self, orient='vertical', command=self.modeCanvas.yview)
-        modeScrollBarY.grid(row=0, column=2, sticky='ns')
+        modeScrollBarY.grid(row=0, column=1, sticky='ns') # Delete or comment out this line if you want to hide the bar for touchscreens!
         self.modeCanvas.configure(yscrollcommand=modeScrollBarY.set)
 
-        # content frame inside the canvas
+        # Content frame inside the canvas
         self.ModeCanvasFrame = Frame(self.modeCanvas, bd=2, relief='solid', padx=5)
         self.canvasWindow = self.modeCanvas.create_window((0, 0),
                              window=self.ModeCanvasFrame, anchor="nw")
         
-        # event configuration to update the scroll region and resize the frame width
+        # Continuously monitor window resizing events to update boundaries
         self.ModeCanvasFrame.bind("<Configure>", lambda e:
                              self.modeCanvas.configure(scrollregion=self.modeCanvas.bbox("all")))
+        
+        # Dynamic tracking: Tells the inner frame to exactly mirror the canvas width as it scales
         self.modeCanvas.bind("<Configure>", lambda e:
                              self.modeCanvas.itemconfig(self.canvasWindow, width=e.width))
-        
-        # Configure the grid for ModeCanvasFrame to be resizable
-        self.grid_rowconfigure(0, weight=1)  # Let the ModeCanvasFrame expand vertically
-        self.grid_columnconfigure(1, weight=20)  # Let the canvas frame expand horizontally
-        
-        # - - - - - - - - - - - - - - - - - - -
-    
-        # Create buttons for various modes
-        self.buttonFrame = Frame(self.ModeButtonFrame, bg='lightblue')
-        self.buttonFrame.grid(row=0, column=0, sticky='new')
-        self.buttonFrame.grid_columnconfigure(0, weight=1)
-        self.buttonFrame.grid_rowconfigure(0, weight=1)
-
-        buttonFont = ('calibre', 12, 'bold')
-        self.pulseButton = Button(self.buttonFrame, text='Pulse Testing',font =buttonFont, padx=10, pady=20, bg='light gray',
-                                command=lambda: self.createCanvas('pulse_test'))
-        self.pulseButton.grid(row=0, column=0, sticky='new', padx=10, pady=10)
-
-        self.pulseStepButton = Button(self.buttonFrame, text='Potentiation Testing',font=buttonFont, padx=10, pady=20,\
-                                    bg='light gray', command=lambda: self.createCanvas('pulse_step_test'))
-        self.pulseStepButton.grid(row=1, column=0, sticky='new', padx=10, pady=10)
-
-        self.pulseCycleButton = Button(self.buttonFrame, text='Pulse Testing - SET/RESET Switch per Cycle',font = buttonFont,
-                                                                 padx=10, pady=20, bg='light gray', command=lambda: self.createCanvas('pulse_cycle_test'))
-        self.pulseCycleButton.grid(row=2, column=0, sticky='new', padx=10, pady=10)
-
-        self.IvTestButton = Button(self.buttonFrame, text='IV Testing', font = buttonFont, padx=10, pady=20, bg='light gray',
-                                command=lambda: self.createCanvas('iv_test'))
-        self.IvTestButton.grid(row=3, column=0, sticky='new', padx=10, pady=10)
-
-        # - - - - - - - - - - - - - - - - - - -
-
-        # Configure the grid of the button frame to make the buttons resizable
-        self.ModeButtonFrame.grid_rowconfigure(0, weight=1)
-        self.ModeButtonFrame.grid_rowconfigure(1, weight=1)
-        self.ModeButtonFrame.grid_rowconfigure(2, weight=1)
-        self.ModeButtonFrame.grid_rowconfigure(3, weight=1)
-
-        self.ModeButtonFrame.grid_columnconfigure(0, weight=1)
         
 
     def getCanvas(self) -> BaseCanvas:
@@ -226,62 +206,45 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         self.binaryMode.trace_add('write', lambda *args:self.canvas.toggleBinaryMode(self.binaryMode.get()))
         # do it once initially in case a picture is already imported when the new canvas is selected
         self.canvas.toggleBinaryMode(self.binaryMode.get())
-        
+        self.apply_scroll_to_all_children(self.ModeCanvasFrame)
 
 
     def initMenuBar(self):
         """
-        Initializes the menu bar in the master window, adding options for 'Export',
-        'Exit', and 'Import Excel Binary Grid' under the 'File' cascade menu.
-
-        The 'Export' option calls the "initExportSettings" function when clicked,
-        the 'Exit' option calls the "closeMaster" function when clicked, and the
-        'Import Excel Binary Grid' option calls the "initImportFileWindow" function
-        when clicked.
-
-        The "initImportFileWindow" function takes two arguments: the master window
-        and the cellGrid object to be filled with the data from the imported binary
-        CSV file.
-
-        The menu bar is then configured to appear in the master window.
+        Initializes the top menu bar, adding an integrated 'Test Mode' selector 
+        to eliminate the need for any on-screen button panels or sidebar spaces.
         """
         self.menuBar = Menu(self)
+        
+        # ----- File Menu -----
         self.fileMenu = Menu(self.menuBar, tearoff = 0)
-        
-        self.fileMenu.add_command(label = 'Import File', command = \
-                            lambda: self.initImportFileWindow()) #calls "initImportFileWindow" function
-        self.fileMenu.add_command(label = 'Export Settings', command = lambda: \
-                             self.initExportSettings(self)) #calls "initExportSettings" function
-        self.fileMenu.add_command(label='Heatmap Settings', command=lambda: self.initHeatmapSettings())
+        self.fileMenu.add_command(label = 'Import File', command = lambda: self.initImportFileWindow())
+        self.fileMenu.add_command(label = 'Export Settings', command = lambda: self.initExportSettings(self))
+        self.fileMenu.add_command(label = 'Heatmap Settings', command = lambda: self.initHeatmapSettings())
         self.fileMenu.add_separator()
-        self.fileMenu.add_command(label = "Exit", command = lambda: self.destroy()) #calls "closeMaster" function
-
-        
+        self.fileMenu.add_command(label = "Exit", command = lambda: self.destroy())
         self.menuBar.add_cascade(label = "File", menu = self.fileMenu)
-        self.config(menu = self.menuBar)
 
         # ----- View Menu -----
         self.viewMenu = Menu(self.menuBar, tearoff=0)
-
-        # Submenu for grid views
         self.gridViewMenu = Menu(self.viewMenu, tearoff=0)
-        self.gridViewMenu.add_command(
-            label="Pixel View",
-            command=lambda:self.cellGrid.setPixelView()
-        )
-        self.gridViewMenu.add_command(
-            label="Normal View",
-            command=lambda:self.cellGrid.setNormalView()
-        )
-
+        self.gridViewMenu.add_command(label="Pixel View", command=lambda:self.cellGrid.setPixelView())
+        self.gridViewMenu.add_command(label="Normal View", command=lambda:self.cellGrid.setNormalView())
         self.viewMenu.add_cascade(label="Grid", menu=self.gridViewMenu)
         self.menuBar.add_cascade(label="View", menu=self.viewMenu)
 
-        # Set menu bar
-        self.config(menu=self.menuBar)
+        # ----- INTEGRATED TEST MODE SELECTOR -----
+        self.modeMenu = Menu(self.menuBar, tearoff=0)
+        self.modeMenu.add_command(label="Pulse Testing", command=lambda: self.createCanvas('pulse_test'))
+        self.modeMenu.add_command(label="Potentiation Testing", command=lambda: self.createCanvas('pulse_step_test'))
+        self.modeMenu.add_command(label="Pulse Testing - SET/RESET Switch", command=lambda: self.createCanvas('pulse_cycle_test'))
+        self.modeMenu.add_command(label="IV Testing", command=lambda: self.createCanvas('iv_test'))
+        self.menuBar.add_cascade(label="Test Mode", menu=self.modeMenu)
 
+        # Apply configured menu bar to root window
+        self.config(menu = self.menuBar)
 
-        
+    
     def initGridWindow(self):
         # Create the secondary window but keep it hidden initially
         cellGridWindow = Toplevel(self)
