@@ -77,31 +77,22 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
 
         self.createModeButtonFrame()
 
-        # === THE ULTIMATE TOUCHSCREEN SCROLLING FIX ===
-        # 1. Define a cross-platform scroll function that explicitly controls the canvas viewport
         def directional_scroll(event):
             if event.delta: # Windows / macOS tracking
                 self.modeCanvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-            elif event.num == 4: # Linux scroll up (Raspberry Pi touchscreens)
+            elif event.num == 4: # Linux scroll up 
                 self.modeCanvas.yview_scroll(-1, "units")
-            elif event.num == 5: # Linux scroll down (Raspberry Pi touchscreens)
+            elif event.num == 5: # Linux scroll down 
                 self.modeCanvas.yview_scroll(1, "units")
 
-        # 2. Attach the helper function directly to the class structure using "self."
-        def apply_scroll_to_all_children(parent_widget):
-            parent_widget.bind("<MouseWheel>", directional_scroll)
-            parent_widget.bind("<Button-4>", directional_scroll)
-            parent_widget.bind("<Button-5>", directional_scroll)
-            for child in parent_widget.winfo_children():
-                apply_scroll_to_all_children(child)
-        
-        # Save it to the class instance so other methods can see it
-        self.apply_scroll_to_all_children = apply_scroll_to_all_children
+        # Global event interception for wheel signals
+        self.bind_all("<MouseWheel>", directional_scroll)
+        self.bind_all("<Button-4>", directional_scroll)
+        self.bind_all("<Button-5>", directional_scroll)
 
-        # 3. Bind the main canvas wrapper area
-        self.modeCanvas.bind_all("<MouseWheel>", directional_scroll)
-        self.modeCanvas.bind_all("<Button-4>", directional_scroll)
-        self.modeCanvas.bind_all("<Button-5>", directional_scroll)
+        # Map touch drags anywhere inside the central panel to drag the UI view viewport
+        self.modeCanvas.bind("<B1-Motion>", lambda e: self.modeCanvas.scan_dragto(e.x, e.y, gain=1))
+        self.modeCanvas.bind("<Button-1>", lambda e: self.modeCanvas.scan_mark(e.x, e.y))
 
         self.initGridWindow()
         self.initMenuBar()
@@ -109,7 +100,97 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         # make the pulse test canvas the default
         self.createCanvas('pulse_test')
 
+    def attach_numeric_keyboard(self, entry_widget, mode='numeric'):
+        """Binds an auto-popup touchscreen keyboard. Supports 'numeric' or 'alpha' (with Case shifting)."""
+        def open_keyboard(event):
+            if hasattr(self, 'touch_keyboard_window') and self.touch_keyboard_window.winfo_exists():
+                return
+                
+            self.touch_keyboard_window = Toplevel(self)
+            self.touch_keyboard_window.title("Keyboard")
+            self.touch_keyboard_window.attributes('-topmost', True)
+            self.touch_keyboard_window.resizable(False, False)
+            self.touch_keyboard_window.geometry("+100+150")
+            
+            # Start off in Uppercase mode by default
+            self.keyboard_caps = True
+            
+            def draw_layout():
+                # Clear out old layout keys if updating from a Shift click
+                for widget in self.touch_keyboard_window.winfo_children():
+                    if isinstance(widget, Button) or isinstance(widget, Label):
+                        widget.grid_forget()
 
+                def press(key):
+                    # Convert key to a lowercase string to bypass case-matching typos completely
+                    k_lower = str(key).strip().lower()
+                    
+                    if k_lower == 'clr' or k_lower == 'clear':
+                        entry_widget.delete(0, tk.END)  # completely empty the box
+                    elif k_lower == 'enter':
+                        self.touch_keyboard_window.destroy()
+                    elif k_lower == 'space':
+                        entry_widget.insert(tk.END, ' ')
+                    elif k_lower == 'shift':
+                        self.keyboard_caps = not self.keyboard_caps
+                        draw_layout()
+                    elif k_lower == '⌫' or k_lower == 'backspace':
+                        current = entry_widget.get()
+                        entry_widget.delete(0, tk.END)
+                        entry_widget.insert(0, current[:-1])
+                    else:
+                        entry_widget.insert(tk.END, key)
+
+                if mode == 'numeric':
+                    Label(self.touch_keyboard_window, text="Enter Numeric Value", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=3, pady=5)
+                    buttons = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '0', '.', '⌫', 'Clr', 'Enter']
+                    r, c, max_cols = 1, 0, 3
+                else:
+                    Label(self.touch_keyboard_window, text="Enter Test Name", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=10, pady=5)
+                    
+                    # Generate the raw letter array based on our current active Shift layer status
+                    raw_letters = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
+                                   'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '⌫',
+                                   'Z', 'X', 'C', 'V', 'B', 'N', 'M', '_', '-', 'Clr']
+                    
+                    if not self.keyboard_caps:
+                        # Convert alphabet elements down to lower case layer strings
+                        buttons = [ch.lower() if ch.isalpha() else ch for ch in raw_letters]
+                    else:
+                        buttons = raw_letters
+                        
+                    # Add our interactive control layout rows to the bottom sequence
+                    buttons.extend(['Shift', 'Space', 'Enter'])
+                    r, c, max_cols = 1, 0, 10
+
+                for btn_text in buttons:
+                    # Layout structural grids
+                    if mode == 'alpha':
+                        if btn_text in ['Space', 'Enter']:
+                            span = 4
+                        elif btn_text == 'Shift':
+                            span = 2
+                        else:
+                            span = 1
+                        width_val = 4
+                    else:
+                        span = 2 if btn_text == 'Enter' else 1
+                        width_val = 6
+                        
+                    btn = Button(self.touch_keyboard_window, text=btn_text, width=width_val, height=2, 
+                                 font=('Arial', 12, 'bold'), command=lambda b=btn_text: press(b),
+                                 bg='light gray' if btn_text not in ['Enter', 'Clr', 'Space', 'Shift'] else 'light green')
+                    btn.grid(row=r, column=c, columnspan=span, padx=2, pady=2, sticky='nsew')
+                    
+                    c += span
+                    if c >= max_cols:
+                        c = 0
+                        r += 1
+
+            # Render initial view layout
+            draw_layout()
+
+        entry_widget.bind("<Button-1>", open_keyboard)
 
     def print(self, line:str, clear=False, isCommand=False, isDone=False):
         if self.canvas:
@@ -214,7 +295,29 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         self.binaryMode.trace_add('write', lambda *args:self.canvas.toggleBinaryMode(self.binaryMode.get()))
         # do it once initially in case a picture is already imported when the new canvas is selected
         self.canvas.toggleBinaryMode(self.binaryMode.get())
-        self.apply_scroll_to_all_children(self.ModeCanvasFrame)
+        # self.apply_scroll_to_all_children(self.ModeCanvasFrame)
+
+        # do it once initially in case a picture is already imported when the new canvas is selected
+        self.canvas.toggleBinaryMode(self.binaryMode.get())
+        # self.apply_scroll_to_all_children(self.ModeCanvasFrame)
+
+        # Loop for numeric canvas fields
+        if hasattr(self.canvas, 'entryWidgets'):
+            for widget_name, widget_dict in self.canvas.entryWidgets.items():
+                if 'Entry' in widget_dict:
+                    self.attach_numeric_keyboard(widget_dict['Entry'], mode='numeric')
+                    
+        # 💡 UPDATE
+        if hasattr(self.canvas, 'testNameEntry'):
+            self.attach_numeric_keyboard(self.canvas.testNameEntry, mode='alpha')
+
+        # Catch specific IV mode grid variants
+        for attr in ['entryFORMWidgets', 'entrySETWidgets', 'entryRESETWidgets', 'entryIVModeWidgets']:
+            if hasattr(self.canvas, attr):
+                widget_group = getattr(self.canvas, attr)
+                for widget_name, widget_dict in widget_group.items():
+                    if 'Entry' in widget_dict:
+                        self.attach_numeric_keyboard(widget_dict['Entry'], mode='numeric')
 
 
     def initMenuBar(self):
