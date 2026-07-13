@@ -101,7 +101,7 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         self.createCanvas('pulse_test')
 
     def attach_numeric_keyboard(self, entry_widget, mode='numeric'):
-        """Binds an auto-popup touchscreen keyboard. Supports 'numeric' or 'alpha' (with Case shifting)."""
+        """Binds an auto-popup touchscreen keyboard. Supports 'numeric' or combined alphanumeric layouts."""
         def open_keyboard(event):
             if hasattr(self, 'touch_keyboard_window') and self.touch_keyboard_window.winfo_exists():
                 return
@@ -122,24 +122,24 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
                         widget.grid_forget()
 
                 def press(key):
-                    # Convert key to a lowercase string to bypass case-matching typos completely
+                    # Convert key to lowercase string to bypass case-matching typos completely
                     k_lower = str(key).strip().lower()
                     
                     if k_lower == 'clr' or k_lower == 'clear':
-                        entry_widget.delete(0, tk.END)  # completely empty the box
+                        entry_widget.delete(0, END)
                     elif k_lower == 'enter':
                         self.touch_keyboard_window.destroy()
                     elif k_lower == 'space':
-                        entry_widget.insert(tk.END, ' ')
+                        entry_widget.insert(END, ' ')
                     elif k_lower == 'shift':
                         self.keyboard_caps = not self.keyboard_caps
-                        draw_layout()
+                        draw_layout()  # Redraw the button grid with the alternate casing
                     elif k_lower == '⌫' or k_lower == 'backspace':
                         current = entry_widget.get()
-                        entry_widget.delete(0, tk.END)
+                        entry_widget.delete(0, END)
                         entry_widget.insert(0, current[:-1])
                     else:
-                        entry_widget.insert(tk.END, key)
+                        entry_widget.insert(END, key)
 
                 if mode == 'numeric':
                     Label(self.touch_keyboard_window, text="Enter Numeric Value", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=3, pady=5)
@@ -148,18 +148,21 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
                 else:
                     Label(self.touch_keyboard_window, text="Enter Test Name", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=10, pady=5)
                     
-                    # Generate the raw letter array based on our current active Shift layer status
+                    # 💡 Row 1: Numbers added directly to the top row of the text keyboard!
+                    buttons = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+                    
+                    # Core letter array layout keys
                     raw_letters = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
                                    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '⌫',
                                    'Z', 'X', 'C', 'V', 'B', 'N', 'M', '_', '-', 'Clr']
                     
                     if not self.keyboard_caps:
                         # Convert alphabet elements down to lower case layer strings
-                        buttons = [ch.lower() if ch.isalpha() else ch for ch in raw_letters]
+                        buttons.extend([ch.lower() if ch.isalpha() else ch for ch in raw_letters])
                     else:
-                        buttons = raw_letters
+                        buttons.extend(raw_letters)
                         
-                    # Add our interactive control layout rows to the bottom sequence
+                    # Add interactive control layout rows to the bottom sequence
                     buttons.extend(['Shift', 'Space', 'Enter'])
                     r, c, max_cols = 1, 0, 10
 
