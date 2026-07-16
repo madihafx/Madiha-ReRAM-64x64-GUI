@@ -322,7 +322,10 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         # do it once initially in case a picture is already imported when the new canvas is selected
         self.canvas.toggleBinaryMode(self.binaryMode.get())
         # self.apply_scroll_to_all_children(self.ModeCanvasFrame)
-
+        
+        # Automatically make all newly loaded buttons, frames, and entries touch-scrollable!
+        self.make_widget_touch_scrollable(self.ModeCanvasFrame)
+        
         # Loop for numeric canvas fields
         if hasattr(self.canvas, 'entryWidgets'):
             for widget_name, widget_dict in self.canvas.entryWidgets.items():
