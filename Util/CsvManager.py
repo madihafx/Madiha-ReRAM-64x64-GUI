@@ -56,10 +56,10 @@ class CsvManager:
 
             fileName = f"dataOld_{i+1}.csv"
             filePath = os.path.join(self.folderDirectory, fileName)
-            with open(filePath, 'w') as file:
+            with open(filePath, 'w', newline='', encoding='utf-8-sig') as file:
+                file.write("sep=,\n") # <--- Inject signature
                 for line in infoLines:
                     file.write('# ' +line + "\n")
-                file.write('\n')
 
                 # Write CSV header
                 header = [index_label] + list(data.columns) if index_label else list(data.columns)
@@ -77,10 +77,10 @@ class CsvManager:
 
 
     def singleToCsv(self, filePath,  data:pd.DataFrame, infoLines:list,*, index_label=None):
-        with open(filePath, 'w') as file:
+        with open(filePath, 'w', newline='', encoding='utf-8-sig') as file:
+            file.write("sep=,\n") # <--- Inject signature
             for line in infoLines:
                 file.write('# ' +line + "\n")
-            file.write('\n')
 
             # Write CSV header
             header = [index_label] + list(data.columns) if index_label else list(data.columns)
@@ -316,10 +316,10 @@ class CsvManager:
 
         if not os.path.exists(retention_filename):
             header = ['cycle', 'Time'] + [f"Dev_({row}, {col})" for row in range(64) for col in range(64)]
-            with open(retention_filename, 'a', newline='') as file:
+            with open(retention_filename, 'a', newline='', encoding='utf-8-sig') as file:
+                file.write("sep=,\n") # <--- Inject signature
                 for line in infoLines:
                     file.write('# ' + line + "\n")
-                file.write("\n")  # blank line
 
                 writer = csv.writer(file)
                 writer.writerow(header)

@@ -1932,7 +1932,9 @@ class InOutManger(InOutKernel):
                 openVar = 'a'
             fileName = f"data_{self.csvSheet}.csv"
             filePath = os.path.join(self.csvMgr.folderDirectory, fileName)
-            with open(filePath, openVar) as file:
+            with open(filePath, openVar, newline='', encoding='utf-8-sig') as file:
+                if openVar == 'w':
+                    file.write("sep=,\n") # <--- Inject signature on a fresh write!
                 # if this is a new CSV file, write the headers
                 if openVar == 'w':
                     infoLines = self.csvMgr.getInfoLines(self.canvas)
