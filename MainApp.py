@@ -37,7 +37,7 @@ class MainApp:
         try:
             self.ui.print('Initializing Serial Port ...', isCommand=startup)
             time.sleep(1)
-            cmd = SerialPort('Silicon Labs CP210x', baudRate = baudRate) # time out will be updated dynamically, see "init" function on the InOutManger
+            cmd = SerialPort('/dev/ttyUSB0', baudRate = baudRate) # time out will be updated dynamically, see "init" function on the InOutManger
             if not cmd.isOpen():
                 time.sleep(1)
                 self.ui.print('Serial Port not found ...')

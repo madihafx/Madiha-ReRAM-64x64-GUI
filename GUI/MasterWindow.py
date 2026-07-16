@@ -213,7 +213,7 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
             if item_text.startswith("Time Elapsed:"):
                 canvas.console.delete(i)
                 break
-            if item_text.startswith("Progress:"):   
+            if item_text.startswith("Progress:"):  
                 canvas.console.delete(i)
                 
 
@@ -832,7 +832,7 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
 
             # Save the importedGrid to a CSV file
             output_filename = fileName.split('.')[0] + '.csv'
-            with open(output_filename, mode='w', newline='') as file:
+            with open(output_filename, mode='w', newline='', encoding='utf-8-sig') as file:
                 writer = csv.writer(file)
                 for row in importedGrid:
                     writer.writerow(row) 

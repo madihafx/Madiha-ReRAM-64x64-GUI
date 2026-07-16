@@ -16,7 +16,7 @@ class CsvManager:
 
         # - - - - - - - - - - - - - - - - - -
 
-        #at Jeelka's request, each device for an IV Test will be given a dedicated
+        # at Jeelka's request, each device for an IV Test will be given a dedicated
         #.csv file
         if(canvas.modeState.get()== 'iv_test'): #for an IV test, split up the data by device
 
