@@ -99,6 +99,25 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
 
         # make the pulse test canvas the default
         self.createCanvas('pulse_test')
+    def make_widget_touch_scrollable(self, widget):
+        """Recursively binds touch-drag events from any child widget to the main canvas."""
+        # We bind to <Button-1> to record where the drag started
+        widget.bind("<Button-1>", self.on_touch_start, add="+")
+        # We bind to <B1-Motion> to actually drag the viewport
+        widget.bind("<B1-Motion>", self.on_touch_drag, add="+")
+        
+        # Recursively apply this to every single child element nested inside
+        for child in widget.winfo_children():
+            self.make_widget_touch_scrollable(child)
+
+    def on_touch_start(self, event):
+        # Mark the anchor point on the canvas using the screen-relative coordinates
+        self.modeCanvas.scan_mark(event.x_root, event.y_root)
+
+    def on_touch_drag(self, event):
+        # Drag the canvas viewport relative to the screen-relative movement
+        # Gain=1 keeps the scrolling 1:1 with your finger movement
+        self.modeCanvas.scan_dragto(event.x_root, event.y_root, gain=1)
 
     def attach_numeric_keyboard(self, entry_widget, mode='numeric'):
         """Binds an auto-popup touchscreen keyboard. Supports 'numeric' or combined alphanumeric layouts."""
@@ -222,7 +241,7 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         Configures the main responsive canvas area with functioning 
         vertical and horizontal scrollbars.
         """
-        # Create a fluid content canvas with no hardcoded pixel limits
+        #  a fluid content canvas with no hardcoded pixel limits
         self.modeCanvas = Canvas(self)
         self.modeCanvas.grid(row=0, column=0, sticky='nsew')
         
