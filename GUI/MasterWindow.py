@@ -91,8 +91,8 @@ class MasterWindowClass(Tk): #overarching Tkinter window class to hold both fram
         self.bind_all("<Button-5>", directional_scroll)
 
         # Map touch drags anywhere inside the central panel to drag the UI view viewport
-        self.modeCanvas.bind("<B1-Motion>", lambda e: self.modeCanvas.scan_dragto(e.x, e.y, gain=1))
-        self.modeCanvas.bind("<Button-1>", lambda e: self.modeCanvas.scan_mark(e.x, e.y))
+        self.modeCanvas.bind("<B1-Motion>", self.on_touch_drag)
+        self.modeCanvas.bind("<Button-1>", self.on_touch_start)
 
         self.initGridWindow()
         self.initMenuBar()
